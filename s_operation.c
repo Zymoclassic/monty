@@ -1,38 +1,36 @@
 #include "monty.h"
 
 /**
-* f_push - function that adds node to the stack
-* @head: double head pointer to the stack
-* @counter: line count
-*
-* Return: nothing
-*/
-void f_push(stack_t **head, unsigned int counter)
+ * set_op_tok_error - Sets last element of op_toks to be an error code.
+ * @error_code: Integer to store as a string in op_toks.
+ */
+void set_op_tok_error(int error_code)
 {
-	int i, m = 0, flag = 0;
+	int toks_len = 0, i = 0;
+	char *exit_str = NULL;
+	char **new_toks = NULL;
 
-	if (bus.arg)
+	toks_len = token_arr_len();
+	new_toks = malloc(sizeof(char *) * (toks_len + 2));
+	if (!op_toks)
 	{
-		if (bus.arg[0] == '-')
-			m++;
-		for (; bus.arg[m] != '\0'; m++)
-		{
-			if (bus.arg[m] > 57 || bus.arg[m] < 48)
-				flag = 1; }
-		if (flag == 1)
-		{ fprintf(stderr, "L%d: usage: push integer\n", counter);
-			fclose(bus.file);
-			free(bus.content);
-			free_stack(*head);
-			exit(EXIT_FAILURE); }}
-	else
-	{ fprintf(stderr, "L%d: usage: push integer\n", counter);
-		fclose(bus.file);
-		free(bus.content);
-		free_stack(*head);
-		exit(EXIT_FAILURE); }
-	i = atoi(bus.arg);
-	if (bus.lifi == 0)
-		addnode(head, i);
-	else
-		addqueue(head, i);
+		malloc_error();
+		return;
+	}
+	while (i < toks_len)
+	{
+		new_toks[i] = op_toks[i];
+		i++;
+	}
+	exit_str = get_int(error_code);
+	if (!exit_str)
+	{
+		free(new_toks);
+		malloc_error();
+		return;
+	}
+	new_toks[i++] = exit_str;
+	new_toks[i] = NULL;
+	free(op_toks);
+	op_toks = new_toks;
+}

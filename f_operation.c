@@ -1,180 +1,169 @@
 #include "monty.h"
+#include <string.h>
+
+void free_tokens(void);
+unsigned int token_arr_len(void);
+int is_empty_line(char *line, char *delims);
+void (*get_op_func(char *opcode))(stack_t**, unsigned int);
+int run_monty(FILE *script_fd);
 
 /**
-* f_add - function that adds the top two elements of the stack
-* @head: double pointer head to the stack
-* @counter: line count
-*
-* Return: nothing
-*/
-void f_add(stack_t **head, unsigned int counter)
+ * free_tokens - Frees the global op_toks array of strings.
+ */
+void free_tokens(void)
 {
-	stack_t *h;
-	int length = 0, temp;
+	size_t i = 0;
 
-	h = *head;
-	while (h)
-	{
-		h = h->next;
-		length++;
-	}
-	if (length < 2)
-	{
-		fprintf(stderr, "L%d: can't add, stack too short\n", counter);
-		fclose(bus.file);
-		free(bus.content);
-		free_stack(*head);
-		exit(EXIT_FAILURE);
-	}
-	h = *head;
-	temp = h->n + h->next->n;
-	h->next->n = temp;
-	*head = h->next;
-	free(h);
+	if (op_toks == NULL)
+		return;
+
+	for (i = 0; op_toks[i]; i++)
+		free(op_toks[i]);
+
+	free(op_toks);
 }
 
 /**
-* f_sub - function that substracts nodes
-* @head: double head pointer to the stack
-* @counter: line count
-*
-* Return: nothing
-*/
-void f_sub(stack_t **head, unsigned int counter)
+ * token_arr_len - Gets the length of current op_toks.
+ *
+ * Return: Length of current op_toks (as int).
+ */
+unsigned int token_arr_len(void)
 {
-	stack_t *temp;
-	int sub, nd;
+	unsigned int toks_len = 0;
 
-	temp = *head;
-	for (nd = 0; temp != NULL; nd++)
-		temp = temp->next;
-	if (nd < 2)
-	{
-		fprintf(stderr, "L%d: can't sub, stack too short\n", counter);
-		fclose(bus.file);
-		free(bus.content);
-		free_stack(*head);
-		exit(EXIT_FAILURE);
-	}
-	temp = *head;
-	sub = temp->next->n - temp->n;
-	temp->next->n = sub;
-	*head = temp->next;
-	free(temp);
+	while (op_toks[toks_len])
+		toks_len++;
+	return (toks_len);
 }
 
 /**
-* f_mul - function that multiplies the top two elements of the stack
-* @head: double head pointer to the stack
-* @counter: line count
-*
-* Return: nothing
-*/
-void f_mul(stack_t **head, unsigned int counter)
+ * is_empty_line - Checks if a line read from getline only contains delimiters.
+ * @line: A pointer to the line.
+ * @delims: A string of delimiter characters.
+ *
+ * Return: If the line only contains delimiters - 1.
+ *         Otherwise - 0.
+ */
+int is_empty_line(char *line, char *delims)
 {
-	stack_t *h;
-	int length = 0, temp;
+	int i, j;
 
-	h = *head;
-	while (h)
+	for (i = 0; line[i]; i++)
 	{
-		h = h->next;
-		length++;
+		for (j = 0; delims[j]; j++)
+		{
+			if (line[i] == delims[j])
+				break;
+		}
+		if (delims[j] == '\0')
+			return (0);
 	}
-	if (length < 2)
-	{
-		fprintf(stderr, "L%d: can't mul, stack too short\n", counter);
-		fclose(bus.file);
-		free(bus.content);
-		free_stack(*head);
-		exit(EXIT_FAILURE);
-	}
-	h = *head;
-	temp = h->next->n * h->n;
-	h->next->n = temp;
-	*head = h->next;
-	free(h);
+
+	return (1);
 }
 
 /**
-* f_div - function that divides the top two elements of the stack
-* @head: double head pointer to the stack
-* @counter: line count
-*
-* Return: nothing
-*/
-void f_div(stack_t **head, unsigned int counter)
+ * get_op_func - Matches an opcode with its corresponding function.
+ * @opcode: The opcode to match.
+ *
+ * Return: A pointer to the corresponding function.
+ */
+void (*get_op_func(char *opcode))(stack_t**, unsigned int)
 {
-	stack_t *h;
-	int length = 0, temp;
+	instruction_t op_funcs[] = {
+		{"push", monty_push},
+		{"pall", monty_pall},
+		{"pint", monty_pint},
+		{"pop", monty_pop},
+		{"swap", monty_swap},
+		{"add", monty_add},
+		{"nop", monty_nop},
+		{"sub", monty_sub},
+		{"div", monty_div},
+		{"mul", monty_mul},
+		{"mod", monty_mod},
+		{"pchar", monty_pchar},
+		{"pstr", monty_pstr},
+		{"rotl", monty_rotl},
+		{"rotr", monty_rotr},
+		{"stack", monty_stack},
+		{"queue", monty_queue},
+		{NULL, NULL}
+	};
+	int i;
 
-	h = *head;
-	while (h)
+	for (i = 0; op_funcs[i].opcode; i++)
 	{
-		h = h->next;
-		length++;
+		if (strcmp(opcode, op_funcs[i].opcode) == 0)
+			return (op_funcs[i].f);
 	}
-	if (length < 2)
-	{
-		fprintf(stderr, "L%d: can't div, stack too short\n", counter);
-		fclose(bus.file);
-		free(bus.content);
-		free_stack(*head);
-		exit(EXIT_FAILURE);
-	}
-	h = *head;
-	if (h->n == 0)
-	{
-		fprintf(stderr, "L%d: division by zero\n", counter);
-		fclose(bus.file);
-		free(bus.content);
-		free_stack(*head);
-		exit(EXIT_FAILURE);
-	}
-	temp = h->next->n / h->n;
-	h->next->n = temp;
-	*head = h->next;
-	free(h);
+
+	return (NULL);
 }
 
 /**
-* f_mod - function that computes the remainder of the division of the second
-* top element of the stack by the top element of the stack
-* @head: double head pointer to the stack
-* @counter: line count
-*
-* Return: nothing
-*/
-void f_mod(stack_t **head, unsigned int counter)
+ * run_monty - Primary function to execute a Monty bytecodes script.
+ * @script_fd: File descriptor for an open Monty bytecodes script.
+ *
+ * Return: EXIT_SUCCESS on success, respective error code on failure.
+ */
+int run_monty(FILE *script_fd)
 {
-	stack_t *h;
-	int length = 0, temp;
+	stack_t *stack = NULL;
+	char *line = NULL;
+	size_t len = 0, exit_status = EXIT_SUCCESS;
+	unsigned int line_number = 0, prev_tok_len = 0;
+	void (*op_func)(stack_t**, unsigned int);
 
-	h = *head;
-	while (h)
+	if (init_stack(&stack) == EXIT_FAILURE)
+		return (EXIT_FAILURE);
+
+	while (getline(&line, &len, script_fd) != -1)
 	{
-		h = h->next;
-		length++;
+		line_number++;
+		op_toks = strtow(line, DELIMS);
+		if (op_toks == NULL)
+		{
+			if (is_empty_line(line, DELIMS))
+				continue;
+			free_stack(&stack);
+			return (malloc_error());
+		}
+		else if (op_toks[0][0] == '#') /* comment line */
+		{
+			free_tokens();
+			continue;
+		}
+		op_func = get_op_func(op_toks[0]);
+		if (op_func == NULL)
+		{
+			free_stack(&stack);
+			exit_status = unknown_op_error(op_toks[0], line_number);
+			free_tokens();
+			break;
+		}
+		prev_tok_len = token_arr_len();
+		op_func(&stack, line_number);
+		if (token_arr_len() != prev_tok_len)
+		{
+			if (op_toks && op_toks[prev_tok_len])
+				exit_status = atoi(op_toks[prev_tok_len]);
+			else
+				exit_status = EXIT_FAILURE;
+			free_tokens();
+			break;
+		}
+		free_tokens();
 	}
-	if (length < 2)
+	free_stack(&stack);
+
+	if (line && *line == 0)
 	{
-		fprintf(stderr, "L%d: can't mod, stack too short\n", counter);
-		fclose(bus.file);
-		free(bus.content);
-		free_stack(*head);
-		exit(EXIT_FAILURE);
+		free(line);
+		return (malloc_error());
 	}
-	h = *head;
-	if (h->n == 0)
-	{
-		fprintf(stderr, "L%d: division by zero\n", counter);
-		fclose(bus.file);
-		free(bus.content);
-		free_stack(*head);
-		exit(EXIT_FAILURE);
-	}
-	temp = h->next->n % h->n;
-	h->next->n = temp;
-	*head = h->next;
-	free(h);
+
+	free(line);
+	return (exit_status);
 }
